@@ -20,9 +20,16 @@ jobs:
           pip install ansible
           ansible-galaxy collection install akeyless.secrets_management
 
+      - name: Get OIDC Token
+        run: |
+          OIDC_TOKEN=$(curl -sLS "${ACTIONS_ID_TOKEN_REQUEST_URL}" -H "User-Agent: actions/oidc-client" -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN")
+          JWT=$(echo $OIDC_TOKEN | jq -j '.value')
+          echo "JWT=$JWT" >> $GITHUB_ENV # Store the JWT as an environment variable
+
       - name: Run Ansible to print Akeyless secret
         run: |
           ansible-playbook get-secret.yml
         env:
           AKEYLESS_ACCESS_ID: p-y5bae7zhmim1om
+          JWT: ${{ env.JWT }}
           # AKEYLESS_TOKEN: ${{ secrets.AKEYLESS_TOKEN }}
