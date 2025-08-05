@@ -1,0 +1,28 @@
+name: Akeyless Local Secret Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  akeyless-test:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Ansible + Akeyless plugin
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install ansible akeyless-ansible
+          ansible-galaxy collection install akeyless.secrets_management
+
+      - name: Run Ansible to print Akeyless secret
+        run: |
+          ansible-playbook localhost.yml
+        env:
+          AKEYLESS_ACCESS_ID: p-y5bae7zhmim1om
+          # AKEYLESS_TOKEN: ${{ secrets.AKEYLESS_TOKEN }}
