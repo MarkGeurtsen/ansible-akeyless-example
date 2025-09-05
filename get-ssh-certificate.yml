@@ -12,7 +12,8 @@
     ssh_cert_path: "{{ work_dir }}/id_rsa-cert.pub"
     target_dns: "ec2-18-218-93-122.us-east-2.compute.amazonaws.com"
     ssh_user: "ubuntu"
-    known_hosts_path: "~/.ssh/known_hosts"
+    ssh_dir: "{{ ansible_env.HOME }}/.ssh"
+    known_hosts_path: "{{ ssh_dir }}/known_hosts"
 
   tasks:
     - name: Ensure working directory exists
@@ -20,6 +21,9 @@
         path: "{{ work_dir }}"
         state: directory
         mode: "0700"
+      loop:
+        - { path: "{{ work_dir }}", mode: "0700" }
+        - { path: "{{ ssh_dir }}",  mode: "0700" }
     - name: Get temp token using api_key auth method
       akeyless.secrets_management.login:
         akeyless_api_url: 'https://api.akeyless.io'
@@ -35,6 +39,12 @@
         public_key_data: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDr6a2R1Fuq/+KjdsgiNCoiNmFXz02g7zNuy4z9lhyR5dBJTZHb+Ajrb0bA7+H4igQfcFDCWRn2RqEc4rSQGTMLyGWTfqTojeQwFm3wMpnfF/y8kFpymNySBKlvjMXdc7Tw6wxi6ul8o111uFhUjUpiChqpl8ojs1BeLZeeQlZ04bjauKikjZ8su3ju9rjZsOoRMoxOj5WI7gtQuo6JSs67AkL3vhUdsT9jpL6x9/normoF7AjFqk1CCtqQCae01iCXz6ILkh2jf9z5DZkCqWQR1rFpgYAOb8Y5kc4c9DmZHABtaX5dmWYxRCHI5bReAqM8B5e2avjd7T8Fx5kBSwUd"
         token: '{{ auth_res.data.token }}'
       register: result
+      
+    - name: Write SSH certificate to file
+      copy:
+        content: "{{ result.data.data }}"
+        dest: "{{ ssh_cert_path }}"
+        mode: "0644"
 
     - name: Scan target host key(s)
       command: "ssh-keyscan -T 5 -H {{ target_dns }}"
@@ -49,11 +59,7 @@
         key: "{{ item }}"
       loop: "{{ scanned_keys.stdout_lines | default([]) }}"
       
-    - name: Write SSH certificate to file
-      copy:
-        content: "{{ result.data.data }}"
-        dest: "{{ ssh_cert_path }}"
-        mode: "0644"
+    
     - name: Define target host with SSH cert settings (in-memory)
       add_host:
         name: target_vm
