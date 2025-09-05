@@ -34,6 +34,20 @@
         public_key_data: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDr6a2R1Fuq/+KjdsgiNCoiNmFXz02g7zNuy4z9lhyR5dBJTZHb+Ajrb0bA7+H4igQfcFDCWRn2RqEc4rSQGTMLyGWTfqTojeQwFm3wMpnfF/y8kFpymNySBKlvjMXdc7Tw6wxi6ul8o111uFhUjUpiChqpl8ojs1BeLZeeQlZ04bjauKikjZ8su3ju9rjZsOoRMoxOj5WI7gtQuo6JSs67AkL3vhUdsT9jpL6x9/normoF7AjFqk1CCtqQCae01iCXz6ILkh2jf9z5DZkCqWQR1rFpgYAOb8Y5kc4c9DmZHABtaX5dmWYxRCHI5bReAqM8B5e2avjd7T8Fx5kBSwUd"
         token: '{{ auth_res.data.token }}'
       register: result
+
+    - name: Scan target host key(s)
+      command: "ssh-keyscan -T 5 -H {{ target_dns }}"
+      register: scanned_keys
+      changed_when: false
+      failed_when: scanned_keys.rc != 0 and scanned_keys.stdout == ""
+
+    - name: Add target host key(s) to known_hosts
+      known_hosts:
+        path: "{{ known_hosts_path }}"
+        name: "{{ target_dns }}"
+        key: "{{ item }}"
+      loop: "{{ scanned_keys.stdout_lines | default([]) }}"
+      
     - name: Write SSH certificate to file
       copy:
         content: "{{ result.data.data }}"
