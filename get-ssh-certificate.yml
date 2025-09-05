@@ -43,10 +43,10 @@
         dest: "{{ ssh_cert_path }}"
         mode: "0644"
 
-    - name: Fix permissions on private key
-      file:
-        path: "{{ ssh_private_key_path }}"
-        mode: "0600"
+    # - name: Fix permissions on private key
+    #   file:
+    #     path: "{{ ssh_private_key_path }}"
+    #     mode: "0600"
 
     - name: Fix permissions on SSH certificate
       file:
