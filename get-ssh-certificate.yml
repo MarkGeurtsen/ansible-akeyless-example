@@ -5,8 +5,20 @@
   collections:
     - akeyless.secrets_management
 
-  tasks:
+  vars:
+    work_dir: /tmp/aap_job_id
+    ssh_private_key_path: "/home/ansible/.ssh/id_rsa" 
+    ssh_public_key_path: "{{ work_dir }}/id_rsa.pub"
+    ssh_cert_path: "{{ work_dir }}/id_rsa-cert.pub"
+    target_dns: "ec2-18-218-93-122.us-east-2.compute.amazonaws.com"
+    ssh_user: "ubuntu"
 
+  tasks:
+    - name: Ensure working directory exists
+      file:
+        path: "{{ work_dir }}"
+        state: directory
+        mode: "0700"
     - name: Get temp token using api_key auth method
       akeyless.secrets_management.login:
         akeyless_api_url: 'https://api.akeyless.io'
@@ -22,7 +34,25 @@
         public_key_data: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDr6a2R1Fuq/+KjdsgiNCoiNmFXz02g7zNuy4z9lhyR5dBJTZHb+Ajrb0bA7+H4igQfcFDCWRn2RqEc4rSQGTMLyGWTfqTojeQwFm3wMpnfF/y8kFpymNySBKlvjMXdc7Tw6wxi6ul8o111uFhUjUpiChqpl8ojs1BeLZeeQlZ04bjauKikjZ8su3ju9rjZsOoRMoxOj5WI7gtQuo6JSs67AkL3vhUdsT9jpL6x9/normoF7AjFqk1CCtqQCae01iCXz6ILkh2jf9z5DZkCqWQR1rFpgYAOb8Y5kc4c9DmZHABtaX5dmWYxRCHI5bReAqM8B5e2avjd7T8Fx5kBSwUd"
         token: '{{ auth_res.data.token }}'
       register: result
+    - name: Write SSH certificate to file
+      copy:
+        content: "{{ result.data.data }}"
+        dest: "{{ ssh_cert_path }}"
+        mode: "0644"
+    - name: Define target host with SSH cert settings (in-memory)
+      add_host:
+        name: target_vm
+        ansible_host: "{{ target_dns }}"
+        ansible_user: "{{ ssh_user }}"
+        ansible_ssh_private_key_file: "{{ ssh_private_key_path }}"
+        ansible_ssh_common_args: "-o CertificateFile={{ ssh_cert_path }}"
 
     - name: Display the RSA key
       debug:
         msg: "{{ result.data.data }}"
+
+- hosts: target_vm
+  gather_facts: false
+  tasks:
+    - name: Verify connection
+      command: hostname
