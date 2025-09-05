@@ -7,13 +7,12 @@
 
   vars:
     work_dir: /tmp/aap_job_id
-    ssh_private_key_path: "/home/ansible/.ssh/id_rsa" 
+    ssh_private_key_path: "/home/ansible/.ssh/id_rsa"   # <-- your matching private key
     ssh_public_key_path: "{{ work_dir }}/id_rsa.pub"
     ssh_cert_path: "{{ work_dir }}/id_rsa-cert.pub"
     target_dns: "ec2-18-218-93-122.us-east-2.compute.amazonaws.com"
     ssh_user: "ubuntu"
-    ssh_dir: "{{ lookup('env','HOME') }}/.ssh"
-    known_hosts_path: "{{ ssh_dir }}/known_hosts"
+    known_hosts_path: "{{ work_dir }}/known_hosts"
 
   tasks:
     - name: Ensure working directory exists
@@ -21,33 +20,38 @@
         path: "{{ work_dir }}"
         state: directory
         mode: "0700"
-      loop:
-        - { path: "{{ work_dir }}", mode: "0700" }
-        - { path: "{{ ssh_dir }}",  mode: "0700" }
-    - name: Get temp token using api_key auth method
+
+    - name: Get temp token using jwt auth method
       akeyless.secrets_management.login:
-        akeyless_api_url: 'https://api.akeyless.io'
-        access_type: 'jwt'
-        access_id: 'p-y5bae7zhmim1om'
+        akeyless_api_url: "https://api.akeyless.io"
+        access_type: "jwt"
+        access_id: "p-y5bae7zhmim1om"
         jwt: "{{ lookup('env', 'JWT') }}"
       register: auth_res
+
     - name: Get SSH certificate
       get_ssh_certificate:
-        akeyless_api_url: 'https://api.akeyless.io'
+        akeyless_api_url: "https://api.akeyless.io"
         cert_issuer_name: "/8-ssh/issuer"
         cert_username: "ubuntu"
         public_key_data: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDr6a2R1Fuq/+KjdsgiNCoiNmFXz02g7zNuy4z9lhyR5dBJTZHb+Ajrb0bA7+H4igQfcFDCWRn2RqEc4rSQGTMLyGWTfqTojeQwFm3wMpnfF/y8kFpymNySBKlvjMXdc7Tw6wxi6ul8o111uFhUjUpiChqpl8ojs1BeLZeeQlZ04bjauKikjZ8su3ju9rjZsOoRMoxOj5WI7gtQuo6JSs67AkL3vhUdsT9jpL6x9/normoF7AjFqk1CCtqQCae01iCXz6ILkh2jf9z5DZkCqWQR1rFpgYAOb8Y5kc4c9DmZHABtaX5dmWYxRCHI5bReAqM8B5e2avjd7T8Fx5kBSwUd"
-        token: '{{ auth_res.data.token }}'
+        token: "{{ auth_res.data.token }}"
       register: result
-      
+
     - name: Write SSH certificate to file
       copy:
         content: "{{ result.data.data }}"
         dest: "{{ ssh_cert_path }}"
         mode: "0644"
 
+    - name: Ensure known_hosts file exists
+      file:
+        path: "{{ known_hosts_path }}"
+        state: touch
+        mode: "0644"
+
     - name: Scan target host key(s)
-      command: "ssh-keyscan -T 5 -H {{ target_dns }}"
+      command: "ssh-keyscan -T 5 {{ target_dns }}"
       register: scanned_keys
       changed_when: false
       failed_when: scanned_keys.rc != 0 and scanned_keys.stdout == ""
@@ -57,18 +61,21 @@
         path: "{{ known_hosts_path }}"
         name: "{{ target_dns }}"
         key: "{{ item }}"
+        hash_hostname: true
+        state: present
       loop: "{{ scanned_keys.stdout_lines | default([]) }}"
-      
-    
+      vars:
+        ansible_unsafe_writes: true
+
     - name: Define target host with SSH cert settings (in-memory)
       add_host:
         name: target_vm
         ansible_host: "{{ target_dns }}"
         ansible_user: "{{ ssh_user }}"
         ansible_ssh_private_key_file: "{{ ssh_private_key_path }}"
-        ansible_ssh_common_args: "-o CertificateFile={{ ssh_cert_path }}"
+        ansible_ssh_common_args: "-o CertificateFile={{ ssh_cert_path }} -o UserKnownHostsFile={{ known_hosts_path }} -o StrictHostKeyChecking=yes"
 
-    - name: Display the RSA key
+    - name: Display the SSH certificate body
       debug:
         msg: "{{ result.data.data }}"
 
