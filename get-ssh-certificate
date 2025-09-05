@@ -1,0 +1,28 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  collections:
+    - akeyless.secrets_management
+
+  tasks:
+
+    - name: Get temp token using api_key auth method
+      akeyless.secrets_management.login:
+        akeyless_api_url: 'https://api.akeyless.io'
+        access_type: 'jwt'
+        access_id: 'p-y5bae7zhmim1om'
+        jwt: "{{ lookup('env', 'JWT') }}"
+      register: auth_res
+    - name: Get SSH certificate
+      get_ssh_certificate:
+        akeyless_api_url: 'https://api.akeyless.io'
+        cert_issuer_name: "/8-ssh/issuer"
+        cert_username: "ubuntu"
+        public_key_data: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDr6a2R1Fuq/+KjdsgiNCoiNmFXz02g7zNuy4z9lhyR5dBJTZHb+Ajrb0bA7+H4igQfcFDCWRn2RqEc4rSQGTMLyGWTfqTojeQwFm3wMpnfF/y8kFpymNySBKlvjMXdc7Tw6wxi6ul8o111uFhUjUpiChqpl8ojs1BeLZeeQlZ04bjauKikjZ8su3ju9rjZsOoRMoxOj5WI7gtQuo6JSs67AkL3vhUdsT9jpL6x9/normoF7AjFqk1CCtqQCae01iCXz6ILkh2jf9z5DZkCqWQR1rFpgYAOb8Y5kc4c9DmZHABtaX5dmWYxRCHI5bReAqM8B5e2avjd7T8Fx5kBSwUd"
+        token: '{{ auth_res.data.token }}'
+      register: result
+
+    - name: Display the RSA key
+      debug:
+        msg: "{{ result.data.data }}"
