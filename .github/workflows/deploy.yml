@@ -28,7 +28,7 @@ jobs:
 
       - name: Run Ansible to print Akeyless secret
         run: |
-          ansible-playbook get-ssh-certificate.yml
+          ansible-playbook get-secret.yml
         env:
           AKEYLESS_ACCESS_ID: p-y5bae7zhmim1om
           JWT: ${{ env.JWT }}
