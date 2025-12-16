@@ -1,0 +1,32 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  collections:
+    - akeyless.secrets_management
+
+  tasks:
+
+    - name: Get temp token using jwt auth method
+      akeyless.secrets_management.login:
+        akeyless_api_url: "https://api.akeyless.io"
+        access_type: "jwt"
+        access_id: "p-y5bae7zhmim1om"
+        jwt: "{{ lookup('env', 'JWT') }}"
+      register: auth_res
+
+    - name: Get PKI certificate
+      get_pki_certificate:
+        akeyless_api_url: 'https://api.akeyless.io'
+        cert_issuer_name: "/7-pki/certificate-issuer"
+        csr_data_base64: "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0KTUlJQzBEQ0NBYmdDQVFBd1hqRUpNQWNHQTFVRUJoTUFNUWt3QndZRFZRUUlFd0F4Q1RBSEJnTlZCQWNUQURFSgpNQWNHQTFVRUNoTUFNUWt3QndZRFZRUUxFd0F4SlRBakJnTlZCQU1USEdSbGJXOHViV2N0WVhkekxtTnpMbUZyClpYbHNaWE56TG1aaGJuTXdnZ0VpTUEwR0NTcUdTSWIzRFFFQkFRVUFBNElCRHdBd2dnRUtBb0lCQVFETFZ0VmgKRnh0cTA4S2h1QXRiZDNZNno3cmRvcXNjT0F0ZFhTVkZVTFNIS2lEVHVHMnlSRUhWRVQyNDhRZytCQURRTldmLwpoU0hXdzNsSkxLSGxiSEpqclpQamNyN3BiWDdjajZrc2xORWM2WEFvVmp5dVE2VnpJVzRUTk04djJNejZjRTBVCkZBblpPSzVIdHVDdDQ0L05zbEN3cU9qZVNBS0VxQnhkZVFXQXQ4QzNTT1VOZk95eS9xOG9xcXNjMFgvKzZTRmgKaUdxWkFyRnBibC95U0tURDZmWEtTTndacjcvc1k3ZFZxekpEcXQ2ZEN5ejNUTkgzMWNXTktORTJiaDJRQmgxRApoSW0rZ05RZVBtcitWS2w4eDBndzBjVXVoSFc2SlBnRmFDdHdkSS9iTFR1eUVKUUc4cWtMbElXOEpRemM5SVMrCjFsS1VDSTlRUG9FTjJsOEhBZ01CQUFHZ0xUQXJCZ2txaGtpRzl3MEJDUTR4SGpBY01BMEdBMVVkRVFRR01BU0MKQUlFQU1Bc0dBMVVkRHdRRUF3SUFBREFOQmdrcWhraUc5dzBCQVFzRkFBT0NBUUVBYmk2WVh5UWRrNUtmblgySwoxNzYzQzk1Q2ZpY0p1UzFIOWtYd01KSXppQkJwSGxNV1F5NVdBaUk1eWhPVmNiM2I0M0VwYXRaMWRPUTUxZFBBCkkrNFk0THluaklrTGd0NXcxc1JQbExsMkpMTkRuS0Z1VkVNYzBXYklYUDZHdXhNL1gwR0J1aUhvU2RhOTBHUTQKUWJDbWRMaExHRGZXTU1OTCtmc0x6Zys5WVVuUEJTeTdJVUNXZy9ZR2RoTFVPNWRtZnowb3lLaS85TWJENDBDbwoxQWZNWU9WdTR3MlRYZFZoV0pEWlZUdkxQc1EvaENpbXRXbzhXU3ZmT1lpdUpjM2dKbkl5NW5sOFFHaGVvY2cxClg2bW5rRkJBVU9BM2pRTHozYzRyRnd4T3BFM1Izdi9zYXRTNEhIck5KT1Y2R3VPTnQ3UlVvTDVScUNPcFZaM0cKTGJ4c3FBPT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUgUkVRVUVTVC0tLS0tCg=="
+        token: '{{ auth_res.data.token }}'
+      register: result
+
+    - name: Display the result of the operation
+      debug:
+        msg: "{{ result }}"
+        
+    - name: Display the RSA key
+      debug:
+        msg: "{{ result.data.data }}"  
